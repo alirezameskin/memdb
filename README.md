@@ -17,7 +17,7 @@ import scala.concurrent.duration._
 
 object Demo extends IOApp {
 
-  def readRecords(db: MemDB)(implicit timer: Timer[IO]) =
+  def readRecords(db: MemDB[IO])(implicit timer: Timer[IO]) =
     timer.sleep(1.seconds) *> db.readOnly { txn =>
       for {
         rows <- txn.all[Person, "name"]
@@ -35,7 +35,7 @@ object Demo extends IOApp {
       } yield ()
     }
 
-  def updateRecords(db: MemDB)(implicit timer: Timer[IO]) =
+  def updateRecords(db: MemDB[IO])(implicit timer: Timer[IO]) =
     db.transaction { txn =>
       for {
         _ <- txn.upsert(Person(1, "Person 1"))
@@ -48,7 +48,7 @@ object Demo extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] =
     for {
-      memdb <- MemDB()
+      memdb <- MemDB[IO]()
       f1    <- updateRecords(memdb).start
       f2    <- readRecords(memdb).start
 

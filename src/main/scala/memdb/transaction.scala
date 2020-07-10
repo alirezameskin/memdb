@@ -1,75 +1,75 @@
 package memdb
 
-import cats.effect.IO
+import cats.effect.Sync
 import cats.effect.concurrent.Ref
 import cats.implicits._
 
-trait Txn {
-  val dbRef: Ref[IO, Database]
+trait Txn[F[_]] {
+  val dbRef: Ref[F, Database]
 }
 
-trait ReadTxn extends Txn {
+trait ReadTxn[F[_]] extends Txn[F] {
 
-  def first[T, K, N](key: K)(implicit is: IndexSelectorByTypeName[T, K, N]): IO[Option[T]]
+  def first[T, K, N](key: K)(implicit is: IndexSelectorByTypeName[T, K, N]): F[Option[T]]
 
-  def all[T, N](implicit is: IndexSelectorByName[T, N]): IO[Iterable[T]]
+  def all[T, N](implicit is: IndexSelectorByName[T, N]): F[Iterable[T]]
 
-  def all[T](implicit S: TableSchema[T]): IO[Iterable[T]]
+  def all[T](implicit S: TableSchema[T]): F[Iterable[T]]
 
-  def range[T, K, N](from: K, until: K)(implicit is: IndexSelectorByTypeName[T, K, N]): IO[Iterable[T]]
+  def range[T, K, N](from: K, until: K)(implicit is: IndexSelectorByTypeName[T, K, N]): F[Iterable[T]]
 
 }
 
-trait WriteTxn {
-  def upsert[T](row: T)(implicit S: TableSchema[T]): IO[Unit]
-  def delete[T](row: T)(implicit S: TableSchema[T]): IO[Unit]
+trait WriteTxn[F[_]] {
+  def upsert[T](row: T)(implicit S: TableSchema[T]): F[Unit]
+  def delete[T](row: T)(implicit S: TableSchema[T]): F[Unit]
 }
 
-class ReadAndWriteTxn(override val dbRef: Ref[IO, Database]) extends ReadOnlyTxn(dbRef) with WriteTxn {
+class ReadAndWriteTxn[F[_]: Sync](override val dbRef: Ref[F, Database]) extends ReadOnlyTxn(dbRef) with WriteTxn[F] {
 
-  override def upsert[T](row: T)(implicit S: TableSchema[T]): IO[Unit] =
+  override def upsert[T](row: T)(implicit S: TableSchema[T]): F[Unit] =
     dbRef.update { db =>
       S.indexes
         .appended(S.primary)
         .foldLeft(db)((d, idx) => d.upsert(idx, row))
     }
 
-  override def delete[T](row: T)(implicit S: TableSchema[T]): IO[Unit] =
+  override def delete[T](row: T)(implicit S: TableSchema[T]): F[Unit] =
     dbRef.update { db =>
       S.indexes.appended(S.primary).foldLeft(db)((d, idx) => d.delete(idx, row))
     }
 }
 
 object ReadAndWriteTxn {
-  def apply(db: Database): IO[ReadAndWriteTxn] =
+  def apply[F[_]: Sync](db: Database): F[ReadAndWriteTxn[F]] =
     for {
-      ref <- Ref.of[IO, Database](db)
+      ref <- Ref.of[F, Database](db)
     } yield new ReadAndWriteTxn(ref)
 }
 
-class ReadOnlyTxn(val dbRef: Ref[IO, Database]) extends ReadTxn {
+class ReadOnlyTxn[F[_]: Sync](val dbRef: Ref[F, Database]) extends ReadTxn[F] {
 
-  override def first[T, K, N](key: K)(implicit is: IndexSelectorByTypeName[T, K, N]): IO[Option[T]] =
+  override def first[T, K, N](key: K)(implicit is: IndexSelectorByTypeName[T, K, N]): F[Option[T]] =
     for {
       db  <- dbRef.get
-      res <- db.first(is.index.identifier, key).pure[IO]
+      res <- db.first(is.index.identifier, key).pure[F]
     } yield res
 
-  override def range[T, K, N](from: K, until: K)(implicit is: IndexSelectorByTypeName[T, K, N]): IO[Iterable[T]] =
+  override def range[T, K, N](from: K, until: K)(implicit is: IndexSelectorByTypeName[T, K, N]): F[Iterable[T]] =
     for {
       db  <- dbRef.get
-      res <- db.range(is.index.identifier, from, until).pure[IO]
+      res <- db.range(is.index.identifier, from, until).pure[F]
     } yield res
 
-  override def all[T, N](implicit is: IndexSelectorByName[T, N]): IO[Iterable[T]] =
+  override def all[T, N](implicit is: IndexSelectorByName[T, N]): F[Iterable[T]] =
     for {
       db  <- dbRef.get
-      res <- db.all(is.index.identifier).pure[IO]
+      res <- db.all(is.index.identifier).pure[F]
     } yield res
 
-  override def all[T](implicit S: TableSchema[T]): IO[Iterable[T]] =
+  override def all[T](implicit S: TableSchema[T]): F[Iterable[T]] =
     for {
       db  <- dbRef.get
-      res <- db.all(S.primary.identifier).pure[IO]
+      res <- db.all(S.primary.identifier).pure[F]
     } yield res
 }

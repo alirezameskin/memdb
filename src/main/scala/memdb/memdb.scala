@@ -1,26 +1,29 @@
 package memdb
 
+import cats.Monad
 import cats.effect.concurrent.{Ref, Semaphore}
-import cats.effect.{Concurrent, IO, Resource}
+import cats.effect.{Concurrent, Resource, Sync}
+import cats.implicits._
 
-trait MemDB {
-  def readOnly[A](f: ReadTxn => IO[A]): IO[A]
-  def transaction[A](f: WriteTxn with ReadTxn => IO[A]): IO[A]
+trait MemDB[F[_]] {
+  def readOnly[A](f: ReadTxn[F] => F[A]): F[A]
+  def transaction[A](f: WriteTxn[F] with ReadTxn[F] => F[A]): F[A]
 }
 
 object MemDB {
 
-  def apply()(implicit C: Concurrent[IO]): IO[MemDB] =
+  def apply[F[_]: Monad]()(implicit C: Concurrent[F]): F[MemDB[F]] =
     for {
-      sem <- Semaphore[IO](1)
-      db  <- Ref.of(Database.empty)
+      sem <- Semaphore[F](1)
+      db  <- Ref.of[F, Database](Database.empty)
     } yield new MemDBImpl(db, sem)
 }
 
-class MemDBImpl(private val dbRef: Ref[IO, Database], private val lock: Semaphore[IO]) extends MemDB {
+class MemDBImpl[F[_]: Monad: Sync](private val dbRef: Ref[F, Database], private val lock: Semaphore[F])
+    extends MemDB[F] {
 
-  override def transaction[A](f: WriteTxn with ReadTxn => IO[A]): IO[A] =
-    Resource.make[IO, Unit](lock.acquire)(_ => lock.release).use[IO, A] { _ =>
+  override def transaction[A](f: WriteTxn[F] with ReadTxn[F] => F[A]): F[A] =
+    Resource.make[F, Unit](lock.acquire)(_ => lock.release).use[F, A] { _ =>
       for {
         db  <- dbRef.get
         txn <- ReadAndWriteTxn(db)
@@ -30,7 +33,7 @@ class MemDBImpl(private val dbRef: Ref[IO, Database], private val lock: Semaphor
       } yield res
     }
 
-  override def readOnly[A](f: ReadTxn => IO[A]): IO[A] =
+  override def readOnly[A](f: ReadTxn[F] => F[A]): F[A] =
     for {
       db  <- dbRef.get
       txn <- ReadAndWriteTxn(db)
