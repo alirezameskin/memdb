@@ -36,7 +36,7 @@ class MemDBImpl[F[_]: Monad: Sync](private val dbRef: Ref[F, Database], private 
   override def readOnly[A](f: ReadTxn[F] => F[A]): F[A] =
     for {
       db  <- dbRef.get
-      txn <- ReadAndWriteTxn(db)
+      txn <- ReadOnlyTxn(db)
       res <- f(txn)
     } yield res
 }

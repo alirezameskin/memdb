@@ -73,3 +73,10 @@ class ReadOnlyTxn[F[_]: Sync](val dbRef: Ref[F, Database]) extends ReadTxn[F] {
       res <- db.all(S.primary.identifier).pure[F]
     } yield res
 }
+
+object ReadOnlyTxn {
+  def apply[F[_]: Sync](db: Database): F[ReadOnlyTxn[F]] =
+    for {
+      ref <- Ref.of[F, Database](db)
+    } yield new ReadOnlyTxn[F](ref)
+}
