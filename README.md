@@ -48,7 +48,7 @@ object Demo extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] =
     for {
-      memdb <- MemDB[IO]()
+      memdb <- MemDB.empty[IO]
       f1    <- updateRecords(memdb).start
       f2    <- readRecords(memdb).start
 

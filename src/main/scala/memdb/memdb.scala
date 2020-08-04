@@ -12,7 +12,7 @@ trait MemDB[F[_]] {
 
 object MemDB {
 
-  def apply[F[_]: Monad]()(implicit C: Concurrent[F]): F[MemDB[F]] =
+  def empty[F[_]: Monad](implicit C: Concurrent[F]): F[MemDB[F]] =
     for {
       sem <- Semaphore[F](1)
       db  <- Ref.of[F, Database](Database.empty)
