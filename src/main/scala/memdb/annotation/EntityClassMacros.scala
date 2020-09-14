@@ -1,25 +1,7 @@
 package memdb.annotation
 
-import scala.annotation.{compileTimeOnly, StaticAnnotation}
 import scala.language.experimental.macros
 import scala.reflect.macros.whitebox.Context
-
-sealed trait IndexAnnotation extends StaticAnnotation {
-  def name: String
-  def unique: Boolean
-}
-
-case class index(name: String, unique: Boolean = false) extends IndexAnnotation
-
-case class id() extends IndexAnnotation {
-  override def name: String    = "id"
-  override def unique: Boolean = true
-}
-
-@compileTimeOnly("enable macro paradise to expand macro annotations")
-class entity extends StaticAnnotation {
-  def macroTransform(annottees: Any*): Any = macro EntityClassMacros.generateCompanionObject
-}
 
 class EntityClassMacros(val c: Context) {
 
@@ -137,24 +119,24 @@ class EntityClassMacros(val c: Context) {
         $mods object $name extends ..$bases {
           ..$body
           
-          case object ${indexIdentifier} extends memdb.IndexIdentifier
+          case object ${indexIdentifier} extends memdb.schema.IndexIdentifier
           
-          implicit val ${indexName}: memdb.UniqueIndex[${classDef.name.toTypeName}, ${idType}] =
-            memdb.UniqueIndex[${classDef.name.toTypeName}, ${idType}](
+          implicit val ${indexName}: memdb.schema.UniqueIndex[${classDef.name.toTypeName}, ${idType}] =
+            memdb.schema.UniqueIndex[${classDef.name.toTypeName}, ${idType}](
               ${indexIdentifier},
               ${idFunc},
               scala.collection.immutable.TreeMap.empty[${idType}, ${classDef.name.toTypeName}]
             )
                     
                   
-          implicit val _memdb_idIndexSelector: memdb.IndexSelectorByTypeName[${classDef.name.toTypeName}, ${idType}, "id"] = 
-            new memdb.IndexSelectorByTypeName[${classDef.name.toTypeName}, ${idType}, "id"] {
-              override val index: memdb.Index.Aux[${classDef.name.toTypeName}, ${idType}] = _memdb_idIndex
+          implicit val _memdb_idIndexSelector: memdb.schema.IndexSelectorByTypeName[${classDef.name.toTypeName}, ${idType}, "id"] = 
+            new memdb.schema.IndexSelectorByTypeName[${classDef.name.toTypeName}, ${idType}, "id"] {
+              override val index: memdb.schema.Index.Aux[${classDef.name.toTypeName}, ${idType}] = _memdb_idIndex
             }
                     
-          implicit val _memdb_idIndexNameSelector: memdb.IndexSelectorByName[${classDef.name.toTypeName}, "id"] = 
-            new memdb.IndexSelectorByName[${classDef.name.toTypeName}, "id"] {
-              override val index: memdb.Index[${classDef.name.toTypeName}] = _memdb_idIndex
+          implicit val _memdb_idIndexNameSelector: memdb.schema.IndexSelectorByName[${classDef.name.toTypeName}, "id"] = 
+            new memdb.schema.IndexSelectorByName[${classDef.name.toTypeName}, "id"] {
+              override val index: memdb.schema.Index[${classDef.name.toTypeName}] = _memdb_idIndex
             }
         }
         """
@@ -175,8 +157,8 @@ class EntityClassMacros(val c: Context) {
 
     val indexImplType = if (index.unique) {
       q"""
-          implicit val ${indexObject}: memdb.UniqueIndex[${classDef.name.toTypeName}, ${indexType}] =
-            memdb.UniqueIndex[${classDef.name.toTypeName}, ${indexType}](
+          implicit val ${indexObject}: memdb.schema.UniqueIndex[${classDef.name.toTypeName}, ${indexType}] =
+            memdb.schema.UniqueIndex[${classDef.name.toTypeName}, ${indexType}](
               ${indexIdentifier},
               ${indexExtractor},
               scala.collection.immutable.TreeMap.empty[${indexType}, ${classDef.name.toTypeName}]
@@ -184,8 +166,8 @@ class EntityClassMacros(val c: Context) {
       """
     } else {
       q"""
-          implicit val ${indexObject}: memdb.NonUniqueIndex[${classDef.name.toTypeName}, ${indexType}, ${idType}] =
-            memdb.NonUniqueIndex[${classDef.name.toTypeName}, ${indexType}, ${idType}](
+          implicit val ${indexObject}: memdb.schema.NonUniqueIndex[${classDef.name.toTypeName}, ${indexType}, ${idType}] =
+            memdb.schema.NonUniqueIndex[${classDef.name.toTypeName}, ${indexType}, ${idType}](
               ${indexIdentifier},
               ${indexExtractor},
               ${primaryExtractor},
@@ -200,18 +182,18 @@ class EntityClassMacros(val c: Context) {
         $mods object $name extends ..$bases {
           ..$body
           
-          case object ${indexIdentifier} extends memdb.IndexIdentifier
+          case object ${indexIdentifier} extends memdb.schema.IndexIdentifier
           
           $indexImplType                   
           
-          implicit val ${indexSelectorByName}: memdb.IndexSelectorByTypeName[${classDef.name.toTypeName}, ${indexType}, ${index.name}] = 
-            new memdb.IndexSelectorByTypeName[${classDef.name.toTypeName}, ${indexType}, ${index.name}] {
-              override val index: memdb.Index.Aux[${classDef.name.toTypeName}, ${indexType}] = ${indexObject}
+          implicit val ${indexSelectorByName}: memdb.schema.IndexSelectorByTypeName[${classDef.name.toTypeName}, ${indexType}, ${index.name}] = 
+            new memdb.schema.IndexSelectorByTypeName[${classDef.name.toTypeName}, ${indexType}, ${index.name}] {
+              override val index: memdb.schema.Index.Aux[${classDef.name.toTypeName}, ${indexType}] = ${indexObject}
             }
                     
-          implicit val ${indexSelectorByNameType}: memdb.IndexSelectorByName[${classDef.name.toTypeName}, ${index.name}] = 
-            new memdb.IndexSelectorByName[${classDef.name.toTypeName}, ${index.name}] {
-              override val index: memdb.Index[${classDef.name.toTypeName}] = ${indexObject}
+          implicit val ${indexSelectorByNameType}: memdb.schema.IndexSelectorByName[${classDef.name.toTypeName}, ${index.name}] = 
+            new memdb.schema.IndexSelectorByName[${classDef.name.toTypeName}, ${index.name}] {
+              override val index: memdb.schema.Index[${classDef.name.toTypeName}] = ${indexObject}
             }
         }
         """
@@ -222,7 +204,7 @@ class EntityClassMacros(val c: Context) {
   def injectTableSchema(classDef: ClassDef, moduleDef: Tree, primary: TermName, indexes: List[TermName]) = {
 
     val indexesDef =
-      if (indexes.isEmpty) q"List.empty[memdb.Index[${classDef.name.toTypeName}]]" else q"List(..${indexes})"
+      if (indexes.isEmpty) q"List.empty[memdb.schema.Index[${classDef.name.toTypeName}]]" else q"List(..${indexes})"
 
     val q"$mods object $name extends ..$bases { ..$body }" = moduleDef
 
@@ -231,8 +213,8 @@ class EntityClassMacros(val c: Context) {
       
       ..$body
           
-      implicit val _memdb_TableSchema: memdb.TableSchema[${classDef.name.toTypeName}] = 
-        memdb.TableSchema[${classDef.name.toTypeName}](${primary}, ${indexesDef})
+      implicit val _memdb_TableSchema: memdb.schema.TableSchema[${classDef.name.toTypeName}] = 
+        memdb.schema.TableSchema[${classDef.name.toTypeName}](${primary}, ${indexesDef})
       }
     """
   }

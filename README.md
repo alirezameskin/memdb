@@ -68,41 +68,48 @@ import memdb.annotation._
 
 //Generated code by @entity macro
 object Person {
-  case object IdIndex extends memdb.IndexIdentifier
-  case object NameIndex extends memdb.IndexIdentifier
+  case object IdIndex extends memdb.schema.IndexIdentifier
+  case object NameIndex extends memdb.schema.IndexIdentifier
 
-  implicit val idIndex: memdb.UniqueIndex[Person, Long] = 
-    memdb.UniqueIndex[Person, Long](IdIndex, _.id, scala.collection.immutable.TreeMap.empty[Long, Person])
+  import memdb.schema.Index
+  import memdb.schema.UniqueIndex
+  import memdb.schema.NonUniqueIndex
+  import memdb.schema.TableSchema
+  import memdb.schema.IndexSelectorByTypeName
+  import memdb.schema.IndexSelectorByName
 
-  implicit val nameIndex: memdb.NonUniqueIndex[Person, String, Long] =
-    memdb.NonUniqueIndex[Person, String, Long](
+  implicit val idIndex: UniqueIndex[Person, Long] = 
+    UniqueIndex[Person, Long](IdIndex, _.id, scala.collection.immutable.TreeMap.empty[Long, Person])
+
+  implicit val nameIndex: NonUniqueIndex[Person, String, Long] =
+    NonUniqueIndex[Person, String, Long](
       NameIndex,
       _.name,
       _.id,
       scala.collection.immutable.TreeMap.empty[String, Map[Long, Person]]
     )
 
-  implicit val schema: memdb.TableSchema[Person] =
-    memdb.TableSchema[Person](idIndex, List(nameIndex))
+  implicit val schema: TableSchema[Person] =
+    TableSchema[Person](idIndex, List(nameIndex))
 
-  implicit val idIndexSelector: memdb.IndexSelectorByTypeName[Person, Long, "id"] =
-    new memdb.IndexSelectorByTypeName[Person, Long, "id"] {
-      override val index: memdb.Index.Aux[Person, Long] = idIndex
+  implicit val idIndexSelector: IndexSelectorByTypeName[Person, Long, "id"] =
+    new IndexSelectorByTypeName[Person, Long, "id"] {
+      override val index: Index.Aux[Person, Long] = idIndex
     }
 
-  implicit val idIndexNameSelector: memdb.IndexSelectorByName[Person, "id"] =
-    new memdb.IndexSelectorByName[Person, "id"] {
-      override val index: memdb.Index[Person] = idIndex
+  implicit val idIndexNameSelector: IndexSelectorByName[Person, "id"] =
+    new IndexSelectorByName[Person, "id"] {
+      override val index: Index[Person] = idIndex
     }
 
-  implicit val nameIndexSelector : memdb.IndexSelectorByTypeName[Person, String, "name"] =
-    new memdb.IndexSelectorByTypeName[Person, String, "name"] {
-      override val index: memdb.Index.Aux[Person, String] = nameIndex
+  implicit val nameIndexSelector : IndexSelectorByTypeName[Person, String, "name"] =
+    new IndexSelectorByTypeName[Person, String, "name"] {
+      override val index: Index.Aux[Person, String] = nameIndex
     }
 
-  implicit val nameIndexNameSelector: memdb.IndexSelectorByName[Person, "name"] =
-    new memdb.IndexSelectorByName[Person, "name"] {
-      override val index: memdb.Index[Person] = nameIndex
+  implicit val nameIndexNameSelector: IndexSelectorByName[Person, "name"] =
+    new IndexSelectorByName[Person, "name"] {
+      override val index: Index[Person] = nameIndex
     }
 }
 ```

@@ -1,23 +1,10 @@
 package memdb
 
 import cats.Monad
+import cats.effect.{Resource, Sync}
 import cats.effect.concurrent.{Ref, Semaphore}
-import cats.effect.{Concurrent, Resource, Sync}
 import cats.implicits._
-
-trait MemDB[F[_]] {
-  def readOnly[A](f: ReadTxn[F] => F[A]): F[A]
-  def transaction[A](f: WriteTxn[F] with ReadTxn[F] => F[A]): F[A]
-}
-
-object MemDB {
-
-  def empty[F[_]: Monad](implicit C: Concurrent[F]): F[MemDB[F]] =
-    for {
-      sem <- Semaphore[F](1)
-      db  <- Ref.of[F, Database](Database.empty)
-    } yield new MemDBImpl(db, sem)
-}
+import memdb.transaction.{ReadAndWriteTxn, ReadOnlyTxn, ReadTxn, WriteTxn}
 
 class MemDBImpl[F[_]: Monad: Sync](private val dbRef: Ref[F, Database], private val lock: Semaphore[F])
     extends MemDB[F] {

@@ -1,5 +1,7 @@
 package memdb
 
+import memdb.schema.{Index, IndexIdentifier}
+
 class Database(val indexes: Map[IndexIdentifier, Index[_]]) {
 
   def first[T, K](index: IndexIdentifier, key: K): Option[T] =
