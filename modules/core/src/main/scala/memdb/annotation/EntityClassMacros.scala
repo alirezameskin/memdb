@@ -119,7 +119,7 @@ class EntityClassMacros(val c: Context) {
         $mods object $name extends ..$bases {
           ..$body
           
-          case object ${indexIdentifier} extends memdb.schema.IndexIdentifier
+          case object ${indexIdentifier} extends memdb.schema.IndexIdentifier[${classDef.name.toTypeName}, ${idType}]
           
           implicit val ${indexName}: memdb.schema.UniqueIndex[${classDef.name.toTypeName}, ${idType}] =
             memdb.schema.UniqueIndex[${classDef.name.toTypeName}, ${idType}](
@@ -182,7 +182,7 @@ class EntityClassMacros(val c: Context) {
         $mods object $name extends ..$bases {
           ..$body
           
-          case object ${indexIdentifier} extends memdb.schema.IndexIdentifier
+          case object ${indexIdentifier} extends memdb.schema.IndexIdentifier[${classDef.name.toTypeName}, ${indexType}]
           
           $indexImplType                   
           

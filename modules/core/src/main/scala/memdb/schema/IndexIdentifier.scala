@@ -1,3 +1,3 @@
 package memdb.schema
 
-trait IndexIdentifier {}
+trait IndexIdentifier[T, K] {}

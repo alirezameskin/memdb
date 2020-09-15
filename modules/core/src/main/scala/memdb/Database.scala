@@ -2,15 +2,15 @@ package memdb
 
 import memdb.schema.{Index, IndexIdentifier}
 
-class Database(val indexes: Map[IndexIdentifier, Index[_]]) {
+class Database private(val indexes: Map[IndexIdentifier[_, _], Index[_]]) {
 
-  def first[T, K](index: IndexIdentifier, key: K): Option[T] =
+  def first[T, K](index: IndexIdentifier[T, K], key: K): Option[T] =
     for {
       idx <- indexes.get(index)
       res <- idx.first(key.asInstanceOf[idx.KEY])
     } yield res.asInstanceOf[T]
 
-  def range[T, K](index: IndexIdentifier, from: K, until: K): Iterable[T] =
+  def range[T, K](index: IndexIdentifier[T, K], from: K, until: K): Iterable[T] =
     indexes
       .get(index)
       .map { idx =>
@@ -20,7 +20,7 @@ class Database(val indexes: Map[IndexIdentifier, Index[_]]) {
       }
       .getOrElse(Iterable.empty[T])
 
-  def all[T](index: IndexIdentifier): Iterable[T] =
+  def all[T](index: IndexIdentifier[T, _]): Iterable[T] =
     indexes
       .get(index)
       .map(_.all.asInstanceOf[Iterable[T]])

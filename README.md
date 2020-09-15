@@ -64,8 +64,8 @@ import memdb.annotation._
 
 //Generated code by @entity macro
 object Person {
-  case object IdIndex extends memdb.schema.IndexIdentifier
-  case object NameIndex extends memdb.schema.IndexIdentifier
+  case object IdIndex extends memdb.schema.IndexIdentifier[Person, Long]
+  case object NameIndex extends memdb.schema.IndexIdentifier[Person, String]
 
   import memdb.schema.Index
   import memdb.schema.UniqueIndex

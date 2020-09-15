@@ -2,15 +2,10 @@ package memdb.schema
 
 import scala.collection.immutable.TreeMap
 
-final case class NonUniqueIndex[T, K, P](
-  identifier: IndexIdentifier,
-  toKey: T => K,
-  getPrimary: T => P,
-  items: TreeMap[K, Map[P, T]]
-) extends Index[T] {
+final case class NonUniqueIndex[T, K, P](identifier: IndexIdentifier[T, K], toKey: T => K, getPrimary: T => P, items: TreeMap[K, Map[P, T]]) extends Index[T] {
   override type KEY = K
 
-  override def upsert(row: T): Index[T] = {
+  override def upsert(row: T): NonUniqueIndex[T, K, P] = {
     val id: P = getPrimary(row)
 
     val nItems = this.items.updatedWith(toKey(row)) {
@@ -30,7 +25,7 @@ final case class NonUniqueIndex[T, K, P](
   override def range(from: K, until: K): Iterable[T] =
     items.range(from, until).valuesIterator.toList.flatMap(_.values)
 
-  override def delete(row: T): Index[T] = {
+  override def delete(row: T): NonUniqueIndex[T, K, P] = {
     val id: P = getPrimary(row)
     val nItems = items.updatedWith(toKey(row)) {
       case Some(map) => Some(map.removed(id))
@@ -38,4 +33,5 @@ final case class NonUniqueIndex[T, K, P](
     }
     this.copy(items = nItems)
   }
+
 }
