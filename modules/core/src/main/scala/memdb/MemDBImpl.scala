@@ -1,7 +1,7 @@
 package memdb
 
 import cats.Monad
-import cats.effect.{Resource, Sync}
+import cats.effect.Sync
 import cats.effect.concurrent.{Ref, Semaphore}
 import cats.implicits._
 import memdb.transaction.{ReadAndWriteTxn, ReadOnlyTxn, ReadTxn, WriteTxn}
@@ -10,7 +10,7 @@ class MemDBImpl[F[_]: Monad: Sync](private val dbRef: Ref[F, Database], private 
     extends MemDB[F] {
 
   override def transaction[A](f: WriteTxn[F] with ReadTxn[F] => F[A]): F[A] =
-    Resource.make[F, Unit](lock.acquire)(_ => lock.release).use[F, A] { _ =>
+    lock.withPermit[A] {
       for {
         db  <- dbRef.get
         txn <- ReadAndWriteTxn(db)
